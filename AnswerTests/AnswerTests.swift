@@ -97,7 +97,6 @@ final class AnswerTests: XCTestCase {
         mockTranslationService = MockTranslationService()
         mockCoreDataService = MockCoreDataService()
         
-        // Initialize in-memory Core Data stack for tests
         inMemoryPersistenceController = PersistenceController(inMemory: true)
         testViewContext = inMemoryPersistenceController.container.viewContext
         

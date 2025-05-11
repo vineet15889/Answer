@@ -88,7 +88,16 @@ struct CameraView: View {
             }
             .onAppear {
                 viewModel.checkPermissions()
-                viewModel.setupSession()
+                viewModel.translationResult = nil
+                viewModel.capturedImage = nil
+                briefImage = nil
+                viewModel.isLoading = false
+                if viewModel.isSessionSetup && !viewModel.session.isRunning {
+                    viewModel.session.startRunning()
+                    viewModel.isCapturing = true
+                } else if !viewModel.isSessionSetup {
+                    viewModel.setupSession()
+                }
             }
             .alert(isPresented: $viewModel.showAlert) {
                 Alert(
@@ -102,7 +111,8 @@ struct CameraView: View {
             .animation(.easeInOut, value: showBriefImage)
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(selectedImage: { image in
-                    // Handle the selected image
+                    viewModel.translationResult = nil
+                    viewModel.capturedImage = nil
                     briefImage = image
                     showImagePicker = false
                     
@@ -125,42 +135,38 @@ struct CameraView: View {
     }
     
     private func processImageAndNavigate(_ image: UIImage) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            withAnimation {
-                viewModel.translationResult = TranslationResponse(
-                    detectedLanguage: "English",
-                    translatedText: "I can't directly execute or verify external API calls like curl in real time, but I can review your curl command and confirm if it looks correct based on standard structure.I can't directly execute or verify external API calls like curl in real time, but I can review your curl command and confirm if it looks correct based on standard structure.", originalText: "Sample text for testing"
-                )
-                
-                viewModel.isLoading = false
-                navigationPath.append("results")
-                viewModel.capturedImage = nil
-            }
-        }
+        // Ensure previous results are cleared before starting a new translation
+        // This is an additional safeguard, though resetting in .onAppear and selection handlers is primary.
+        viewModel.translationResult = nil
         
-        /* ORIGINAL CODE - Uncomment when ready to use the real API
-        // Process the image using the view model
-        viewModel.processGalleryImage(image)
-        
-        // Use a Task to monitor the translation result
+        viewModel.processGalleryImage(image) // This will set viewModel.capturedImage and trigger translation
         Task {
-            // Wait for the translation result to be available
-            while viewModel.translationResult == nil && viewModel.isLoading {
+            // Wait for translationResult to be populated by the ViewModel
+            // This loop relies on processGalleryImage eventually setting translationResult
+            var attempts = 0
+            let maxAttempts = 20 // e.g., 10 seconds if sleep is 0.5s
+            while viewModel.translationResult == nil && viewModel.isLoading && attempts < maxAttempts {
                 try? await Task.sleep(nanoseconds: 500_000_000) // Check every 0.5 seconds
+                attempts += 1
             }
             
-            // If we have a result, navigate to the results screen
-            if viewModel.translationResult != nil {
-                await MainActor.run {
-                    withAnimation {
-                        viewModel.isLoading = false
+            // Ensure UI updates are on the main thread
+            await MainActor.run {
+                withAnimation {
+                    viewModel.isLoading = false // Stop loading indicator
+                    if viewModel.translationResult != nil {
                         navigationPath.append("results")
-                        viewModel.capturedImage = nil
+                    } else {
+                        // Handle timeout or error if translationResult is still nil
+                        viewModel.alertTitle = "Translation Failed"
+                        viewModel.alertMessage = "Could not get translation results. Please try again."
+                        viewModel.showAlert = true
                     }
+                    // Clear the full-screen preview image from CameraView *after* navigating or showing an alert
+                    viewModel.capturedImage = nil
                 }
             }
         }
-        */
     }
 }
 

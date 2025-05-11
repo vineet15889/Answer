@@ -28,11 +28,11 @@ class CameraViewModel: NSObject, ObservableObject {
 
     let session = AVCaptureSession()
     private var photoOutput = AVCapturePhotoOutput()
-    private var isSessionSetup = false
     private var captureCompletion: ((UIImage?) -> Void)?
     private let translationService: TranslationServiceProtocol
-    private let coreDataService: CoreDataServiceProtocol // Add CoreDataService dependency
-    
+    private let coreDataService: CoreDataServiceProtocol
+    var isSessionSetup = false
+
     init(translationService: TranslationServiceProtocol = TranslationService(),
          coreDataService: CoreDataServiceProtocol = CoreDataService()) {
         self.translationService = translationService
